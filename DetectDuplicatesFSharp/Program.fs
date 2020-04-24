@@ -4,7 +4,7 @@ open System.IO
 let getDirectory (args:string array) =
     args
     |> Array.tryHead
-    |> Option.defaultValue (Directory.GetCurrentDirectory())
+    |> Option.defaultWith Directory.GetCurrentDirectory
 
 let (|Match|_|) regex str =
     let m = Regex(regex).Match(str)
