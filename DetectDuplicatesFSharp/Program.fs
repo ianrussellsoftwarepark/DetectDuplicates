@@ -23,12 +23,10 @@ let findDuplicates file =
 
 let processFolder path =
     printfn "Looking for duplicates in %s" path
-    let files = Directory.GetFiles(path, "*.csproj", SearchOption.AllDirectories)
-    [ for file in files do
+    [ for file in Directory.GetFiles(path, "*.csproj", SearchOption.AllDirectories) do
         let duplicates = file |> findDuplicates
         if duplicates |> Seq.isEmpty |> not then
-            file |> Path.GetFileName, duplicates
-    ]
+            file |> Path.GetFileName, duplicates ]
 
 [<EntryPoint>]
 let main argv =
