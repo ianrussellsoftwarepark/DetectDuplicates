@@ -1,38 +1,23 @@
-﻿open System.Text.RegularExpressions
-open System.IO
+﻿open System.IO
+open System.Text.RegularExpressions
 
-let getDirectory (args:string array) =
-    args
-    |> Array.tryHead
-    |> Option.defaultWith Directory.GetCurrentDirectory
-
-let (|Match|_|) regex str =
-    let m = Regex(regex).Match(str)
-    if m.Success then Some (List.tail [ for x in m.Groups -> x.Value ])
-    else None
-
-let findDuplicates file =
-    file
-    |> File.ReadLines
-    |> Seq.choose (
-        function
-        | Match "<PackageReference Include=\"([^\"]*)\"" [ s ] -> Some s
-        | _ -> None)
-    |> Seq.groupBy id
-    |> Seq.choose (fun (s, x) -> if Seq.length x > 1 then Some s else None)
-
-let processFolder path =
-    printfn "Looking for duplicates in %s" path
-    [ for file in Directory.GetFiles(path, "*.csproj", SearchOption.AllDirectories) do
-        let duplicates = file |> findDuplicates
-        if duplicates |> Seq.isEmpty |> not then
-            file |> Path.GetFileName, duplicates ]
+let processFolder path = seq { 
+    for file in Directory.EnumerateFiles(path, "*.csproj", SearchOption.AllDirectories) do
+        let packages = seq {
+            for line in File.ReadLines(file) do
+                let m = Regex("<PackageReference Include=\"([^\"]*)\"").Match(line)
+                if m.Success then m.Groups.[1].Value
+        }
+        for package in packages |> Seq.groupBy id do
+            if Seq.length (snd package) = 1 then (file |> Path.GetFileName, fst package)
+}
 
 [<EntryPoint>]
 let main argv =
     argv
-    |> getDirectory 
+    |> Array.tryHead |> Option.defaultWith Directory.GetCurrentDirectory
+    |> fun path -> path |> printfn "Looking for duplicates in %s"; path
     |> processFolder
-    |> function
-       | [] -> printfn "No duplicates found"; 0
-       | items -> items |> List.iter (fun item -> printfn "%s -> %A" (fst item) (snd item)); 1
+    |> fun duplicates ->
+       if duplicates |> Seq.isEmpty then printfn "No duplicates found"; 0
+       else duplicates |> Seq.iter (fun item -> printfn "%s -> %A" (fst item) (snd item)); 1
